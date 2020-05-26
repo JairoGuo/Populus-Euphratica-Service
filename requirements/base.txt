@@ -21,10 +21,12 @@ django-redis==4.11.0  # https://github.com/niwinz/django-redis
 django-taggit  # https://django-taggit.readthedocs.io/en/latest/
 # django-rest-auth  # http://django-rest-auth.readthedocs.org/en/latest/
 dj-rest-auth  # https://dj-rest-auth.readthedocs.io/en/latest/
-# djangorestframework-jwt
-djangorestframework-simplejwt  # https://django-rest-framework-simplejwt.readthedocs.io/
+django-filter  # https://django-filter.readthedocs.io/en/stable
+
 # Django REST Framework
+# ------------------------------------------------------------------------------
 djangorestframework==3.11.0  # https://github.com/encode/django-rest-framework
+djangorestframework-simplejwt  # https://django-rest-framework-simplejwt.readthedocs.io/
 
 mysqlclient
 coreapi  # core-api.github.io/python-client/

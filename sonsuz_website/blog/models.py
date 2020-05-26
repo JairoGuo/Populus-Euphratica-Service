@@ -55,7 +55,7 @@ class Article(models.Model):
     category = models.ForeignKey(ArticleCategory, on_delete=models.SET_NULL, null=True,
                                  blank=True, related_name="blog_category")
     tags = TaggableManager(through=UUIDTaggedItem, blank=True, help_text='多个标签使用英文逗号(,)隔开',
-                           verbose_name='文章标签', related_name='blog_tags')
+                           verbose_name='文章标签')
 
     type = models.CharField(verbose_name="文章类型", choices=TYPE, max_length=15)
     original_url = models.URLField(verbose_name='原文地址', blank=True)
@@ -66,7 +66,7 @@ class Article(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间', db_index=True)
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间', db_index=True)
 
-    objects = ArticleQuerySet.as_manager()
+    # objects = ArticleQuerySet.as_manager()
 
     class Meta:
         ordering = ['-created_at']

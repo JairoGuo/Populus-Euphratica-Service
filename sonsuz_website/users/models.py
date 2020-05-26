@@ -9,34 +9,12 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 
-
-
-# class Homepages(Model):
-#     # user = IntegerField(verbose_name="用户")
-#     user = ForeignKey()
-#     choices = (("Github", "Github"), ("weibo", "微博"),
-#                ("Facebook", "Facebook"), ("Twitter", "Twitter"),
-#                ("WeChat", "微信"), ("WCOA", "公众号"))
-#     homepage_type = CharField(verbose_name="主页名称", choices=choices, max_length=255)
-#     homepage_url = URLField(verbose_name="主页地址", max_length=255)
-#
-#     def __str__(self):
-#         return self.homepage_type
-
-#
-# class Tags(Model):
-#     pass
-#
-
-
-
 class User(AbstractUser):
     # First Name and Last Name do not cover name patterns
     # around the globe.
     nickname = CharField(verbose_name="昵称", null=True, blank=True, max_length=255, default='')
     name = CharField(verbose_name="真实姓名", null=True, blank=True, max_length=255, default='')
     avatar = ImageField(upload_to='users/avatars/', null=True, blank=True, verbose_name='用户头像', default='')
-
     sex = CharField(verbose_name="性别", choices=(("M", "男"), ("F", "女"), ("P", "不公开")), default="P", max_length=50)
     birthday = DateField(verbose_name="生日", null=True, blank=True, default=timezone.now)
     position = CharField(verbose_name="职位", null=True, blank=True, max_length=255, default='')

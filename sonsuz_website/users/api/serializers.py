@@ -23,7 +23,7 @@ class HomePageSerializer(ModelSerializer):
 
 
 class UserSerializer(ModelSerializer):
-    homepage = HomePageSerializer(many=True)
+    homepage = HomePageSerializer(many=True, required=False)
     # skill = SkillSerializer(many=True)
     # homepage = StringRelatedField(many=True)
 
@@ -37,6 +37,7 @@ class UserSerializer(ModelSerializer):
         extra_kwargs = {
             "url": {"view_name": "api:user-detail", "lookup_field": "username"}
         }
+        read_only_fields = ('email',)
 
 
 

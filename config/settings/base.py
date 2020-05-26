@@ -79,7 +79,9 @@ THIRD_PARTY_APPS = [
     # "rest_auth",
     'dj_rest_auth',
     # "rest_auth.registration",
-    "dj_rest_auth.registration"
+    "dj_rest_auth.registration",
+    'taggit_serializer',
+    'django_filters'
 
 ]
 
@@ -327,7 +329,7 @@ REST_FRAMEWORK = {
 }
 # ACCOUNT_LOGOUT_ON_GET = True
 REST_USE_JWT = True
-JWT_AUTH_COOKIE = 'jwt-auth'
+JWT_AUTH_COOKIE = 'JWT'
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
@@ -345,7 +347,7 @@ SIMPLE_JWT = {
     'AUDIENCE': None,
     'ISSUER': None,
 
-    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_TYPES': ('Bearer', 'JWT'),
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
 
@@ -357,4 +359,9 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
     'SLIDING_TOKEN_LIFETIME': timedelta(days=7),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+
+}
+
+REST_AUTH_SERIALIZERS = {
+    'USER_DETAILS_SERIALIZER': 'sonsuz_website.users.api.serializers.UserSerializer',
 }

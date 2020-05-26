@@ -8,7 +8,8 @@ from rest_framework import serializers
 from taggit import managers
 from sonsuz_website.blog.models import Article, Comment, Like
 from taggit.models import Tag
-
+from taggit_serializer.serializers import (TagListSerializerField,
+                                           TaggitSerializer)
 
 
 
@@ -24,30 +25,26 @@ class CommentSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class TagSerializer(ModelSerializer):
-    class Meta:
-        model = Tag
-        fields = '__all__'
 
-class ArticleSerializer(ModelSerializer):
+
+class ArticleSerializer(TaggitSerializer, ModelSerializer):
 
     blog_like = LikeSerializer(many=True, required=False)
     blog_comment = CommentSerializer(many=True, required=False)
-    blog_tags = TagSerializer(many=True, required=False)
-
+    # blog_tags = TagSerializer(many=True, required=False)
+    tags = TagListSerializerField(required=False)
     class Meta:
         model = Article
         fields = '__all__'
 
-
-    def create(self, request):
-        data = dict(request)
-        abstract = data['content'][0: 100]
-        if 'abstract' not in dict(request):
-            data.update({'abstract': abstract})
-        Article.objects.create(**data)
-
-        return request
+    # def create(self, request):
+    #     data = dict(request)
+    #     if 'abstract' not in dict(request):
+    #         abstract = data['content'][0: 100]
+    #         data.update({'abstract': abstract})
+    #     instance = Article.objects.create(**data)
+    #
+    #     return instance
 
 
 
