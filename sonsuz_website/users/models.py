@@ -5,6 +5,7 @@ from django.db.models import Model, CharField, DateField, URLField, ManyToManyFi
 from django.utils import timezone
 
 from django.urls import reverse
+from django.conf import settings
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -64,3 +65,9 @@ class Homepages(Model):
 
     def __str__(self):
         return self.homepage_type
+
+# TODO: 关注
+# class Follow(models.Model):
+#     user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True,
+#                              on_delete=models.CASCADE,
+#                              verbose_name='用户', related_name='follow_user')

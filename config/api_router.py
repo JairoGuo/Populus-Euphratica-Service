@@ -19,7 +19,7 @@ urlpatterns = router.urls
 urlpatterns += [
     path('accounts/', include('sonsuz_website.users.api.api_router')),
     path('news/', include('sonsuz_website.news.api.api_router')),
-    path('articles/', include('sonsuz_website.blog.api.api_router')),
+    path('blog/', include('sonsuz_website.blog.api.api_router')),
     path('upload-image/', include('sonsuz_website.ImageHosting.api.api_router')),
 
 

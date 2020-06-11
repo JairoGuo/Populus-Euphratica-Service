@@ -3,11 +3,13 @@ from allauth.account.adapter import get_adapter
 from allauth.account import app_settings
 from allauth.account.utils import setup_user_email, send_email_confirmation
 from django.core import signing
-from rest_framework.serializers import ModelSerializer, StringRelatedField
+from rest_framework.serializers import ModelSerializer, StringRelatedField, SerializerMethodField
 from rest_framework import serializers
 from taggit import managers
 from sonsuz_website.users.models import User, Homepages
 from allauth.account.models import EmailAddress
+from sonsuz_website.blog.api.serializers import CategorySerializer, CollectSerializer
+from sonsuz_website.blog.models import Article
 
 class HomePageSerializer(ModelSerializer):
 
@@ -22,10 +24,17 @@ class HomePageSerializer(ModelSerializer):
 #         fields = ['name']
 
 
+
+
 class UserSerializer(ModelSerializer):
     homepage = HomePageSerializer(many=True, required=False)
+    category = CategorySerializer(many=True, required=False)
+
     # skill = SkillSerializer(many=True)
     # homepage = StringRelatedField(many=True)
+
+    articles_num = SerializerMethodField()
+    category_num = SerializerMethodField()
 
     class Meta:
         model = User
@@ -38,6 +47,12 @@ class UserSerializer(ModelSerializer):
             "url": {"view_name": "api:user-detail", "lookup_field": "username"}
         }
         read_only_fields = ('email',)
+
+    def get_articles_num(self, obj):
+        return Article.objects.all().count()
+
+    def get_category_num(self, obj):
+        return obj.category.count()
 
 
 

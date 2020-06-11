@@ -24,7 +24,9 @@ class ArticleCategory(models.Model):
     name = models.CharField(max_length=50, verbose_name='类别名称')
     user = models.ForeignKey(settings.AUTH_USER_MODEL,
                              on_delete=models.CASCADE,
-                             verbose_name='用户', related_name='blog_category_user')
+                             verbose_name='用户', related_name='category')
+
+    summary = models.TextField(verbose_name='简介',blank=True, null=False)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间', db_index=True)
 
 
@@ -33,8 +35,7 @@ class ArticleCategory(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = '文章类别'
-        verbose_name_plural = verbose_name
+        verbose_name = '文章分类'
         ordering = ['created_at']
 
 
@@ -53,11 +54,11 @@ class Article(models.Model):
     status = models.CharField(max_length=1, choices=STATUS, blank=True, default='D', verbose_name='文章状态')
     click_nums = models.IntegerField(default=0, verbose_name='点击量')
     category = models.ForeignKey(ArticleCategory, on_delete=models.SET_NULL, null=True,
-                                 blank=True, related_name="blog_category")
+                                 blank=True, related_name="articles")
     tags = TaggableManager(through=UUIDTaggedItem, blank=True, help_text='多个标签使用英文逗号(,)隔开',
                            verbose_name='文章标签')
 
-    type = models.CharField(verbose_name="文章类型", choices=TYPE, max_length=15)
+    type = models.CharField(verbose_name="文章类型",blank=True, null=True, choices=TYPE, max_length=15)
     original_url = models.URLField(verbose_name='原文地址', blank=True)
     # likers = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="liked_news",
     #                                 verbose_name='点赞用户')
@@ -69,6 +70,7 @@ class Article(models.Model):
     # objects = ArticleQuerySet.as_manager()
 
     class Meta:
+        verbose_name = '文章'
         ordering = ['-created_at']
 
 
@@ -77,12 +79,53 @@ class Comment(models.Model):
                              on_delete=models.CASCADE,
                              verbose_name='用户', related_name='blog_comment_user')
     content = models.TextField(verbose_name='内容')
-    blog_id = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='blog_comment', verbose_name='ID')
+    blog_id = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='comments', verbose_name='ID')
+    reply_comment = models.ForeignKey('self', related_name='replies', on_delete=models.CASCADE, blank=True, null=True)
     create_time = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
 
 
 class Like(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True,
                              on_delete=models.CASCADE,
-                             verbose_name='用户', related_name='blog_like_user')
-    blog_id = models.ForeignKey(Article, on_delete=models.CASCADE,  related_name='blog_like', verbose_name='ID')
+                             verbose_name='用户', related_name='like_user')
+    blog_id = models.ForeignKey(Article, on_delete=models.CASCADE,  related_name='likes', verbose_name='ID')
+
+
+
+
+
+# 文章收藏分类
+class CollectCategory(models.Model):
+
+    TYPE = (('Public', '公开'), ('Private', '私密'))
+    name = models.CharField(max_length=50, verbose_name='类别名称')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,
+                             on_delete=models.CASCADE,
+                             verbose_name='用户', related_name='collect_category')
+    type = models.CharField(max_length=50, verbose_name='收藏类别', choices=TYPE, default='Public')
+    description = models.TextField(verbose_name='描述', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间', db_index=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = '收藏分类'
+        ordering = ['created_at']
+
+
+# 文章收藏
+class Collect(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True,
+                             on_delete=models.CASCADE,
+                             verbose_name='用户', related_name='follow_user')
+
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, verbose_name='收藏文章', related_name="collect_article")
+
+    category = models.ManyToManyField(CollectCategory, blank=True, related_name='collect')
+
+    # def __str__(self):
+    #     return self.article
+
+
+# TODO: 收藏文章  关注专栏
