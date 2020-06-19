@@ -9,7 +9,7 @@ from taggit import managers
 from sonsuz_website.users.models import User, Homepages
 from allauth.account.models import EmailAddress
 from sonsuz_website.blog.api.serializers import CategorySerializer, CollectSerializer
-from sonsuz_website.blog.models import Article
+from sonsuz_website.blog.models import Article, CollectCategory
 
 class HomePageSerializer(ModelSerializer):
 
@@ -35,6 +35,13 @@ class UserSerializer(ModelSerializer):
 
     articles_num = SerializerMethodField()
     category_num = SerializerMethodField()
+    collect_num = SerializerMethodField()
+    article_by_all = SerializerMethodField()
+    article_by_p = SerializerMethodField()
+    article_by_d = SerializerMethodField()
+    collect_category_by_all = SerializerMethodField()
+    collect_category_by_public = SerializerMethodField()
+    collect_category_by_private = SerializerMethodField()
 
     class Meta:
         model = User
@@ -49,10 +56,39 @@ class UserSerializer(ModelSerializer):
         read_only_fields = ('email',)
 
     def get_articles_num(self, obj):
-        return Article.objects.all().count()
+        user = User.objects.get(username=obj).pk
+        return Article.objects.filter(user=user).all().count()
 
     def get_category_num(self, obj):
         return obj.category.count()
+
+    def get_collect_num(self, obj):
+        user = User.objects.get(username=obj).pk
+        return CollectCategory.objects.filter(user=user).all().count()
+
+    def get_article_by_all(self, obj):
+        user = User.objects.get(username=obj).pk
+        return Article.objects.filter(user=user).all().count()
+
+    def get_article_by_p(self, obj):
+        user = User.objects.get(username=obj).pk
+        return Article.objects.filter(user=user, status='P').all().count()
+
+    def get_article_by_d(self, obj):
+        user = User.objects.get(username=obj).pk
+        return Article.objects.filter(user=user, status='D').all().count()
+
+    def get_collect_category_by_all(self, obj):
+        user = User.objects.get(username=obj).pk
+        return CollectCategory.objects.filter(user=user).all().count()
+
+    def get_collect_category_by_public(self, obj):
+        user = User.objects.get(username=obj).pk
+        return CollectCategory.objects.filter(user=user, type='Public').all().count()
+
+    def get_collect_category_by_private(self, obj):
+        user = User.objects.get(username=obj).pk
+        return CollectCategory.objects.filter(user=user, type='Private').all().count()
 
 
 

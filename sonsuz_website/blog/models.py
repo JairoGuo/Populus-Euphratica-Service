@@ -128,4 +128,11 @@ class Collect(models.Model):
     #     return self.article
 
 
-# TODO: 收藏文章  关注专栏
+# TODO: 关注专栏
+class CategoryFollow(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True,
+                             on_delete=models.CASCADE,
+                             verbose_name='用户', related_name='category_follow_user')
+
+    category = models.ForeignKey(ArticleCategory, on_delete=models.CASCADE, blank=True, related_name='category_follow')
+

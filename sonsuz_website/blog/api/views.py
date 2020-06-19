@@ -32,8 +32,9 @@ from rest_framework.mixins import ListModelMixin
 from rest_framework.generics import ListAPIView
 
 from sonsuz_website.blog.api.serializers import ArticleSerializer, CategorySerializer, CommentSerializer, \
-    ArticleListSerializer, ArticleViewSerializer, LikeSerializer, CollectSerializer, CollectCategorySerializer
-from sonsuz_website.blog.models import Article, ArticleCategory, Comment, Like, Collect, CollectCategory
+    ArticleListSerializer, ArticleViewSerializer, LikeSerializer, CollectSerializer, CollectCategorySerializer, \
+    CategoryFollowSerializer
+from sonsuz_website.blog.models import Article, ArticleCategory, Comment, Like, Collect, CollectCategory, CategoryFollow
 from sonsuz_website.users.models import User
 from sonsuz_website.blog.api.pagination import PageLimitOffset
 
@@ -101,13 +102,7 @@ class ArticleListView(ListModelMixin, GenericViewSet):
     filter_fields = ('status', 'category', 'type')
     ordering_fields = ('created_at', 'click_nums')
 
-
-
-
-
     def list(self, request, *args, **kwargs):
-
-
 
         if 'username' not in request.query_params:
             queryset = self.filter_queryset(self.get_queryset())
@@ -120,9 +115,7 @@ class ArticleListView(ListModelMixin, GenericViewSet):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-
             return self.get_paginated_response(serializer.data)
-
 
         serializer = self.get_serializer(queryset, many=True)
 
@@ -130,7 +123,6 @@ class ArticleListView(ListModelMixin, GenericViewSet):
 
 
 class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin, GenericViewSet):
-
     serializer_class = ArticleViewSerializer
     queryset = Article.objects.all()
 
@@ -139,6 +131,8 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
         like_instance = Like.objects.filter(user=request.user.pk, blog_id=self.get_object().article_id)
         collect_category = []
         collect_instance = Collect.objects.filter(user=request.user.pk, article=self.get_object().article_id)
+        category_follow_instance = CategoryFollow.objects.filter(user=request.user.pk, category=self.get_object().category)
+
         if collect_instance:
             collect_serializer = CollectSerializer(data=collect_instance, many=True)
             collect_serializer.is_valid()
@@ -154,14 +148,20 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
         else:
             is_collect = False
 
+        if category_follow_instance:
+            is_category_follow = True
+        else:
+            is_category_follow = False
+
         instance = self.get_object()
-        instance.click_nums +=1
+        instance.click_nums += 1
         instance.save()
         serializer = self.get_serializer(instance)
-        data =serializer.data
+        data = serializer.data
         data.update({'is_like': is_like})
         data.update({'is_collect': is_collect})
         data.update({'collect_category': collect_category})
+        data.update({'is_category_follow': is_category_follow})
         return Response(data)
 
     def create(self, request, **kwargs):
@@ -187,15 +187,25 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
 
 
 class CategoryViewSet(ModelViewSet):
-
     serializer_class = CategorySerializer
     queryset = ArticleCategory.objects.all()
 
     def list(self, request, *args, **kwargs):
-        user =request.user.pk
 
-        instance = ArticleCategory.objects.filter(user=user)
-        serializer = self.get_serializer(instance, many=True)
+        if 'username' not in request.query_params:
+            queryset = self.filter_queryset(self.get_queryset())
+        else:
+            username = request.query_params["username"]
+            user = User.objects.get(username=username).pk
+            instance = ArticleCategory.objects.filter(user=user)
+            queryset = self.filter_queryset(instance)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
 
         return Response(serializer.data)
 
@@ -216,7 +226,6 @@ class CommentsViewSet(ModelViewSet):
     queryset = Comment.objects.filter(reply_comment=None)
 
     def create(self, request, *args, **kwargs):
-
         data = request.data
         data.update({'user': request.user.pk})
 
@@ -251,8 +260,6 @@ class LikeViewSet(ModelViewSet):
             serializer.save()
             return Response({'like': True}, status=status.HTTP_200_OK)
 
-
-
     # def destroy(self, request, *args, **kwargs):
     #     instance = self.get_object()
     #
@@ -264,16 +271,24 @@ class CollectCategoryViewSet(ModelViewSet):
     serializer_class = CollectCategorySerializer
     queryset = CollectCategory.objects.all()
 
+    filter_backends = (DjangoFilterBackend,)
+    filter_fields = ('type',)
+
     def list(self, request, *args, **kwargs):
 
-        user = request.user.pk
-        instance = CollectCategory.objects.filter(user=user)
-        serializer = self.get_serializer(instance, many=True)
+        if 'username' not in request.query_params:
+            queryset = self.filter_queryset(self.get_queryset())
+        else:
+            username = request.query_params["username"]
+            user = User.objects.get(username=username).pk
+            instance = CollectCategory.objects.filter(user=user)
+            queryset = self.filter_queryset(instance)
+
+        serializer = self.get_serializer(queryset, many=True)
 
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
-
         data = request.data
         data.update({'user': request.user.pk})
         serializer = self.get_serializer(data=data)
@@ -284,15 +299,29 @@ class CollectCategoryViewSet(ModelViewSet):
 
 
 class CollectViewSet(ModelViewSet):
-
     serializer_class = CollectSerializer
     queryset = Collect.objects.all()
 
+    pagination_class = PageLimitOffset
+
     def list(self, request, *args, **kwargs):
 
-        user = request.user.pk
-        instance = Collect.objects.filter(user=user)
-        serializer = self.get_serializer(instance, many=True)
+        if 'collectcategory' not in request.query_params:
+            queryset = self.filter_queryset(self.get_queryset())
+        else:
+            # username = request.query_params["username"]
+            # user = User.objects.get(username=username).pk
+            # instance = Collect.objects.filter(user=user, category=request.query_params["category"])
+            instance = Collect.objects.filter(category=request.query_params["collectcategory"])
+            queryset = self.filter_queryset(instance)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
         return Response(serializer.data)
 
@@ -343,10 +372,27 @@ class CollectViewSet(ModelViewSet):
         data.update({'is_colletc': True})
         return Response(data)
 
-
         # return Response({'message': 'ok'})
 
 
+class CategoryFollowViewSet(ModelViewSet):
+    serializer_class = CategoryFollowSerializer
+    queryset = CategoryFollow.objects.all()
 
+    def create(self, request, *args, **kwargs):
+
+        instance = CategoryFollow.objects.filter(user=request.user.pk, category=request.data['category'])
+        if instance:
+            instance.delete()
+            return Response({'isCategoryFollow': False}, status=status.HTTP_200_OK)
+        else:
+
+            data = request.data
+            data.update({'user': request.user.pk})
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response({'isCategoryFollow': True}, status=status.HTTP_201_CREATED, headers=headers)
 
 

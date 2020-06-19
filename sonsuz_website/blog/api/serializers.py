@@ -8,7 +8,7 @@ from django.db.models.aggregates import Count
 from rest_framework.serializers import ModelSerializer, StringRelatedField
 from rest_framework import serializers
 from taggit import managers
-from sonsuz_website.blog.models import Article, Comment, Like, ArticleCategory, Collect, CollectCategory
+from sonsuz_website.blog.models import Article, Comment, Like, ArticleCategory, Collect, CollectCategory, CategoryFollow
 from taggit.models import Tag
 from taggit_serializer.serializers import (TagListSerializerField,
                                            TaggitSerializer)
@@ -73,6 +73,24 @@ class CollectSerializer(ModelSerializer):
         model = Collect
         fields = '__all__'
 
+    title = serializers.SerializerMethodField()
+    cover = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    abstract = serializers.SerializerMethodField()
+
+    def get_title(self, obj):
+        return obj.article.title
+
+    def get_cover(self, obj):
+        return obj.article.cover
+
+    def get_created_at(self, obj):
+        return obj.article.created_at
+
+    def get_abstract(self, obj):
+        return obj.article.abstract
+
+
 
 class ArticleViewSerializer(TaggitSerializer, ModelSerializer):
 
@@ -93,6 +111,7 @@ class ArticleViewSerializer(TaggitSerializer, ModelSerializer):
     like_num = serializers.SerializerMethodField()
     collect_num = serializers.SerializerMethodField()
 
+
     def get_comment_num(self, obj):
         return obj.comments.count()
 
@@ -103,6 +122,8 @@ class ArticleViewSerializer(TaggitSerializer, ModelSerializer):
         return obj.collect_article.count()
 
 
+
+
 class ArticleListSerializer(ModelSerializer):
 
 
@@ -111,6 +132,7 @@ class ArticleListSerializer(ModelSerializer):
     # comments = CommentSerializer(many=True, read_only=True)
     comment_num = serializers.SerializerMethodField()
     like_num = serializers.SerializerMethodField()
+
 
     class Meta:
         model = Article
@@ -126,21 +148,27 @@ class ArticleListSerializer(ModelSerializer):
         return obj.likes.count()
 
 
+
 class CategorySerializer(ModelSerializer):
     # articles = ArticleListSerializer(many=True)
 
     class Meta:
         model = ArticleCategory
-        fields = ['id', 'name', 'summary', 'user', 'article_num', ]  # 'articles'
+        fields = ['id', 'name', 'summary', 'user', 'article_num', 'category_follow_num']  # 'articles'
 
     article_num = serializers.SerializerMethodField()
+    category_follow_num = serializers.SerializerMethodField()
 
     def get_article_num(self, obj):
+
         return obj.articles.count()
+
+    def get_category_follow_num(self, obj):
+        return obj.category_follow.count()
 
 
 class CollectCategorySerializer(ModelSerializer):
-    collect = CollectSerializer(many=True, required=False)
+    # collect = CollectSerializer(many=True, required=False)
 
     class Meta:
         model = CollectCategory
@@ -153,6 +181,11 @@ class CollectCategorySerializer(ModelSerializer):
 
         return obj.collect.count()
 
+
+class CategoryFollowSerializer(ModelSerializer):
+    class Meta:
+        model = CategoryFollow
+        fields = '__all__'
 
 
 
