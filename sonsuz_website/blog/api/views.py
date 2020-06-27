@@ -323,7 +323,7 @@ class CollectViewSet(ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-        return Response(serializer.data)
+
 
     def create(self, request, *args, **kwargs):
 
@@ -378,6 +378,7 @@ class CollectViewSet(ModelViewSet):
 class CategoryFollowViewSet(ModelViewSet):
     serializer_class = CategoryFollowSerializer
     queryset = CategoryFollow.objects.all()
+    pagination_class = PageLimitOffset
 
     def create(self, request, *args, **kwargs):
 
@@ -394,5 +395,20 @@ class CategoryFollowViewSet(ModelViewSet):
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
             return Response({'isCategoryFollow': True}, status=status.HTTP_201_CREATED, headers=headers)
+
+    def list(self, request, *args, **kwargs):
+
+        if 'username' not in request.query_params:
+            queryset = self.filter_queryset(self.get_queryset())
+        else:
+            username = request.query_params["username"]
+            user = User.objects.get(username=username).pk
+            instance = CategoryFollow.objects.filter(user=user)
+            queryset = self.filter_queryset(instance)
+
+
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response(serializer.data)
 
 

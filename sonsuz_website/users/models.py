@@ -71,3 +71,13 @@ class Homepages(Model):
 #     user = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True,
 #                              on_delete=models.CASCADE,
 #                              verbose_name='用户', related_name='follow_user')
+
+
+class UserFollow(models.Model):
+    follow = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True,
+                             on_delete=models.CASCADE,
+                             verbose_name='关注', related_name='follow')
+
+    follow_to = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True,
+                             on_delete=models.CASCADE,
+                             verbose_name='粉丝', related_name='follow_to')

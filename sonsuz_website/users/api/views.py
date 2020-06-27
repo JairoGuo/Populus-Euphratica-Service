@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import DetailView
 from django.core import signing
+from django_filters.rest_framework import DjangoFilterBackend
 
 from rest_framework import status, permissions
 from rest_framework.authentication import SessionAuthentication
@@ -16,9 +17,12 @@ from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from rest_framework import generics
 
 from .permissions import IsOwnerOrReadOnly
-from .serializers import UserSerializer, EmailSerializer
+from .serializers import UserSerializer, EmailSerializer, UserFollowSerializer, UserFansSerializer
 from allauth.account.models import EmailAddress, EmailConfirmationHMAC
 from allauth.account import app_settings
+
+from ..models import UserFollow
+
 User = get_user_model()
 
 # RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericViewSet
@@ -34,6 +38,18 @@ class UserViewSet(RetrieveModelMixin, ListModelMixin, UpdateModelMixin, GenericV
     #     return self.queryset.filter(id=self.request.user.id)
 
 
+    def retrieve(self, request, *args, **kwargs):
+        follow_instance = UserFollow.objects.filter(follow=request.user.pk, follow_to=self.get_object().pk)
+        if follow_instance:
+            is_follow = True
+        else:
+            is_follow = False
+
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        data.update({'is_follow': is_follow})
+        return Response(data)
 
     @action(detail=False, methods=["GET"])
     def me(self, request):
@@ -106,4 +122,33 @@ class  EmailViewSet(ModelViewSet):
 #     #
 #     #     return Response(status=status.HTTP_200_OK, data={"D": "OK"})
 
+
+class UserFollowViewSet(ModelViewSet):
+    serializer_class = UserFollowSerializer
+    queryset = UserFollow.objects.all()
+
+    filter_backends = (DjangoFilterBackend,)
+    filter_fields = ('follow',)
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+
+        instance = self.get_queryset().filter(follow=request.user.pk, follow_to=data['follow_to'])
+        if instance:
+            instance.delete()
+            return Response(status=status.HTTP_200_OK, data={"is_follow": False})
+        data.update({'follow': request.user.pk})
+        print(data)
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(data={"is_follow": True}, status=status.HTTP_201_CREATED, headers=headers)
+
+class UserFansView(ListModelMixin, GenericViewSet):
+    serializer_class = UserFansSerializer
+    queryset = UserFollow.objects.all()
+
+    filter_backends = (DjangoFilterBackend,)
+    filter_fields = ('follow_to',)
 

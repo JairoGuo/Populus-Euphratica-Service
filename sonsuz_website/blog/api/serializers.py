@@ -183,10 +183,21 @@ class CollectCategorySerializer(ModelSerializer):
 
 
 class CategoryFollowSerializer(ModelSerializer):
+    category_info = CategorySerializer(many=True, required=False)
+
     class Meta:
         model = CategoryFollow
         fields = '__all__'
+    category_name = serializers.SerializerMethodField()
+    category_summary = serializers.SerializerMethodField()
 
+    def get_category_name(self, obj):
+
+        return obj.category.name
+
+    def get_category_summary(self, obj):
+
+        return obj.category.summary
 
 
 
