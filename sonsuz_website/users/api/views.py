@@ -1,8 +1,10 @@
 from allauth.account.adapter import get_adapter
-from allauth.account.utils import send_email_confirmation, setup_user_email
+from allauth.account.utils import send_email_confirmation, setup_user_email, user_email
+from dj_rest_auth.registration.views import RegisterView as _RegisterView
 from dj_rest_auth.utils import JWTCookieAuthentication
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.utils.timezone import now
 from django.views.generic import DetailView
 from django.core import signing
 from django_filters.rest_framework import DjangoFilterBackend
@@ -15,7 +17,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from rest_framework import generics
+from django.conf import settings
+from dj_rest_auth.utils import jwt_encode
+from dj_rest_auth.app_settings import (JWTSerializer, TokenSerializer,
+                                       create_token)
 
+from allauth.account import app_settings as allauth_settings
+from allauth.socialaccount import signals
 from .permissions import IsOwnerOrReadOnly
 from .serializers import UserSerializer, EmailSerializer, UserFollowSerializer, UserFansSerializer
 from allauth.account.models import EmailAddress, EmailConfirmationHMAC
@@ -132,18 +140,22 @@ class UserFollowViewSet(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         data = request.data
-
         instance = self.get_queryset().filter(follow=request.user.pk, follow_to=data['follow_to'])
         if instance:
             instance.delete()
             return Response(status=status.HTTP_200_OK, data={"is_follow": False})
+
         data.update({'follow': request.user.pk})
-        print(data)
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(data={"is_follow": True}, status=status.HTTP_201_CREATED, headers=headers)
+        instance1 = UserFollow.objects.filter(follow=request.user.pk, follow_to=data['follow_to'])
+        instance2 = UserFollow.objects.filter(follow=data['follow_to'], follow_to=request.user.pk)
+        mutual_follow = instance1.count() == instance2.count()
+        return Response(data={"is_follow": True, 'mutual_follow': mutual_follow}, status=status.HTTP_201_CREATED,
+                        headers=headers)
+
 
 class UserFansView(ListModelMixin, GenericViewSet):
     serializer_class = UserFansSerializer
@@ -151,4 +163,27 @@ class UserFansView(ListModelMixin, GenericViewSet):
 
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('follow_to',)
+
+
+class RegisterView(_RegisterView):
+
+    def create(self, request, *args, **kwargs):
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+
+        self.get_key(request)
+        return Response(self.get_response_data(user),
+                        status=status.HTTP_201_CREATED,
+                        headers=headers)
+
+    def get_key(self, request):
+
+        self.email_address = EmailAddress.objects.get(email=request.data['email'])
+        print(signing.dumps(
+            obj=self.email_address.pk,
+            salt=app_settings.SALT))
+
 

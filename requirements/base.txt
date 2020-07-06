@@ -6,6 +6,7 @@ argon2-cffi==19.2.0  # https://github.com/hynek/argon2_cffi
 whitenoise==5.0.1  # https://github.com/evansd/whitenoise
 redis==3.4.1 # https://github.com/andymccurdy/redis-py
 celery==4.4.2  # pyup: < 5.0  # https://github.com/celery/celery
+celery[redis]
 django-celery-beat==2.0.0  # https://github.com/celery/django-celery-beat
 
 # Django
@@ -30,3 +31,4 @@ djangorestframework-simplejwt  # https://django-rest-framework-simplejwt.readthe
 
 mysqlclient
 coreapi  # core-api.github.io/python-client/
+redis  # https://github.com/andymccurdy/redis-py

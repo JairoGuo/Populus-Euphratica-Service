@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.conf import settings
 
 from django.utils.translation import ugettext_lazy as _
+from taggit.managers import TaggableManager
 
 
 class User(AbstractUser):
@@ -24,8 +25,8 @@ class User(AbstractUser):
     industry = CharField(verbose_name="行业", null=True, blank=True, max_length=255, default='')
     introduction = CharField(verbose_name="简介", null=True, blank=True, max_length=255, default='')
     website = URLField(verbose_name="网站", null=True, blank=True, max_length=255, default='')
-    # skill = TaggableManager(help_text='多个标签使用英文逗号(,)隔开', blank=True, verbose_name='技能')
-    skill = CharField(verbose_name='技能', blank=True,null=True, default='', max_length=512)
+    skill = TaggableManager(help_text='多个标签使用英文逗号(,)隔开', blank=True, verbose_name='技能')
+    # skill = CharField(verbose_name='技能', blank=True,null=True, default='', max_length=512)
     # homepage = ManyToManyField(Homepages, null=True, blank=True, verbose_name="个人主页")
     # medal = ForeignKey(Medal, on_delete=models.CASCADE, verbose_name="勋章")
 

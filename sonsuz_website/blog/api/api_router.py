@@ -3,7 +3,7 @@ from django.conf import settings
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter, SimpleRouter
-from sonsuz_website.blog.api.views import ArticleViewSet, CategoryViewSet, CommentsViewSet, ArticleListView, \
+from sonsuz_website.blog.api.views import CategoryViewSet, CommentsViewSet, ArticleListView, \
     ArticleView, LikeViewSet, CollectViewSet, CollectCategoryViewSet, CategoryFollowViewSet
 
 

@@ -4,6 +4,7 @@ from allauth.account import app_settings
 from allauth.account.utils import setup_user_email, send_email_confirmation
 from django.core import signing
 from django.db.models.aggregates import Count
+from django_redis import get_redis_connection
 
 from rest_framework.serializers import ModelSerializer, StringRelatedField
 from rest_framework import serializers
@@ -105,12 +106,11 @@ class ArticleViewSerializer(TaggitSerializer, ModelSerializer):
         model = Article
         # fields = '__all__'
         # fields = ['title', 'content', 'abstract', 'cover', 'status', 'category', 'tags', 'type', 'original_url']
-        exclude = ['user', 'click_nums']
+        exclude = ['user',]
 
     comment_num = serializers.SerializerMethodField()
     like_num = serializers.SerializerMethodField()
     collect_num = serializers.SerializerMethodField()
-
 
     def get_comment_num(self, obj):
         return obj.comments.count()
@@ -123,7 +123,6 @@ class ArticleViewSerializer(TaggitSerializer, ModelSerializer):
 
 
 
-
 class ArticleListSerializer(ModelSerializer):
 
 
@@ -132,12 +131,12 @@ class ArticleListSerializer(ModelSerializer):
     # comments = CommentSerializer(many=True, read_only=True)
     comment_num = serializers.SerializerMethodField()
     like_num = serializers.SerializerMethodField()
+    click_num = serializers.SerializerMethodField()
 
 
     class Meta:
         model = Article
         # fields = '__all__'
-
         # fields = ['article_id', 'abstract', 'cover', 'status', 'click_nums', 'created_at']
         exclude = ['content', 'original_url', 'updated_at', 'user']
 
@@ -147,6 +146,12 @@ class ArticleListSerializer(ModelSerializer):
     def get_like_num(self, obj):
         return obj.likes.count()
 
+    def get_click_num(self, obj):
+        con = get_redis_connection()
+        click_nums = obj.click_nums
+        if con.hget('visited', str(obj.article_id)):
+            click_nums += int(con.hget('visited', str(obj.article_id)))
+        return click_nums
 
 
 class CategorySerializer(ModelSerializer):

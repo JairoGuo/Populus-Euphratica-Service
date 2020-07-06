@@ -149,6 +149,7 @@ MIDDLEWARE = [
     "django.middleware.common.BrokenLinkEmailsMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 
+
 ]
 
 # STATIC
@@ -366,13 +367,11 @@ REST_AUTH_SERIALIZERS = {
     'USER_DETAILS_SERIALIZER': 'sonsuz_website.users.api.serializers.UserSerializer',
 }
 
-
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
-    }
+from celery.schedules import crontab
+CELERYBEAT_SCHEDULE = {
+    'commit_visited': {
+        'task': 'sonsuz_website.blog.tasks.commit_visited',
+        'schedule': crontab(minute='*/10', hour='3',),
+        'args': ()
+    },
 }

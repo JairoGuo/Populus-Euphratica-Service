@@ -6,6 +6,8 @@ from django.core import signing
 from rest_framework.serializers import ModelSerializer, StringRelatedField, SerializerMethodField
 from rest_framework import serializers
 from taggit import managers
+from taggit_serializer.serializers import TaggitSerializer, TagListSerializerField
+
 from sonsuz_website.users.models import User, Homepages, UserFollow
 from allauth.account.models import EmailAddress
 from sonsuz_website.blog.api.serializers import CategorySerializer, CollectSerializer
@@ -27,9 +29,10 @@ class HomePageSerializer(ModelSerializer):
 
 
 
-class UserSerializer(ModelSerializer):
+class UserSerializer(TaggitSerializer, ModelSerializer):
     homepage = HomePageSerializer(many=True, required=False)
     category = CategorySerializer(many=True, required=False)
+    skill = TagListSerializerField(required=False)
 
     # skill = SkillSerializer(many=True)
     # homepage = StringRelatedField(many=True)
@@ -116,12 +119,12 @@ class EmailSerializer(ModelSerializer):
         fields = '__all__'
 
     def create(self, request):
-        print(request)
+
         EmailAddress.objects.create(user=request['user'], email=request['email'])
         self.email_address = EmailAddress.objects.get(email=request['email'])
-        # print(signing.dumps(
-        #     obj=self.email_address.pk,
-        #     salt=app_settings.SALT))
+        print(signing.dumps(
+            obj=self.email_address.pk,
+            salt=app_settings.SALT))
 
         EmailAddress.send_confirmation(self.email_address)
         return request
@@ -156,7 +159,7 @@ class UserFansSerializer(ModelSerializer):
     username = serializers.ReadOnlyField(source='follow.username', required=False)
     user_id = serializers.ReadOnlyField(source='follow.id', required=False)
 
-    
+
     mutual_follow = SerializerMethodField()
 
     class Meta:

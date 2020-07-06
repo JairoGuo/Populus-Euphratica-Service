@@ -1,4 +1,7 @@
+import json
 import re
+from hashlib import md5
+from uuid import UUID
 
 import coreapi
 import coreschema
@@ -7,6 +10,7 @@ from allauth.account.utils import send_email_confirmation, setup_user_email
 from dj_rest_auth.utils import JWTCookieAuthentication
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.cache import cache
 from django.db.models.aggregates import Count
 
 from django.utils.http import urlunquote
@@ -14,9 +18,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import DetailView
 from django.core import signing
 from django_filters.rest_framework import DjangoFilterBackend
+from django_redis import get_redis_connection
 from rest_framework.filters import OrderingFilter
 from rest_framework.schemas import ManualSchema
-
 from config.settings.base import APPS_DIR
 from rest_framework import status, permissions
 from rest_framework.authentication import SessionAuthentication
@@ -37,59 +41,9 @@ from sonsuz_website.blog.api.serializers import ArticleSerializer, CategorySeria
 from sonsuz_website.blog.models import Article, ArticleCategory, Comment, Like, Collect, CollectCategory, CategoryFollow
 from sonsuz_website.users.models import User
 from sonsuz_website.blog.api.pagination import PageLimitOffset
+from ipware.ip import get_client_ip
 
 
-class ArticleViewSet(ModelViewSet):
-    serializer_class = ArticleSerializer
-    queryset = Article.objects.all()
-    # permission_classes = [IsAuthenticated]
-    # lookup_field = 'news_id'
-    pagination_class = PageLimitOffset
-
-    filter_backends = (DjangoFilterBackend, OrderingFilter)
-    filter_fields = ('user', 'status', 'category')
-    ordering_fields = ('created_at', 'click_nums')
-
-    def create(self, request, **kwargs):
-
-        data = request.data
-        data.update({'user': request.user.pk})
-
-        if data['abstract'] == None:
-            content = data['content']
-            content = re.sub('!\[.*?\]\((.*?)\)', '', content)
-            pattern = '[\\\`\*\_\[\]\#\+\-\!\>]'
-            content = re.sub(pattern, '', content)
-            abstract = content[0: 150]
-            data.update({'abstract': abstract})
-
-        serializer = ArticleSerializer(data=data)
-        if not serializer.is_valid():
-            return Response({'info': 'error'}, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
-        # return Response(serial.data)
-        # return Response({'code': '200', 'message': 'OK'})
-
-    def list(self, request, *args, **kwargs):
-
-        if 'username' not in request.query_params:
-            queryset = self.filter_queryset(self.get_queryset())
-        else:
-            username = request.query_params["username"]
-            user = User.objects.get(username=username).pk
-            instance = Article.objects.filter(user=user)
-            queryset = self.filter_queryset(instance)
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-
-        return Response(serializer.data)
 
 
 class ArticleListView(ListModelMixin, GenericViewSet):
@@ -126,9 +80,41 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
     serializer_class = ArticleViewSerializer
     queryset = Article.objects.all()
 
+    def handle_visited(self, request, id):
+        increase_pv = False
+        con = get_redis_connection()
+
+        if not con.hget("visited", str(id)):
+            con.hset("visited", str(id), 0)
+
+        if 'HTTP_X_FORWARDED_FOR' in request.META:
+            ip = request.META['HTTP_X_FORWARDED_FOR']
+            print('HTTP_X_FORWARDED_FOR', ip)
+        else:
+            ip = request.META['REMOTE_ADDR']
+            print('REMOTE_ADDR', ip)
+        flag = md5((ip+str(id)).encode("utf-8")).hexdigest()
+        if not con.hget('visitor', flag):
+            increase_pv = True
+            # cache.set(flag, 1, 1 * 60)
+            con.hset('visitor', flag, 1)
+            con.expire('visitor', 60)
+
+        if increase_pv:
+
+            con.hincrby('visited', str(id))
+
+            # cache.client.hset("visited", str(id), 1)
+
     def retrieve(self, request, *args, **kwargs):
 
-        like_instance = Like.objects.filter(user=request.user.pk, blog_id=self.get_object().article_id)
+
+
+        # ip1 = get_client_ip(request)
+
+        self.handle_visited(request, self.get_object().article_id)
+
+
         collect_category = []
         collect_instance = Collect.objects.filter(user=request.user.pk, article=self.get_object().article_id)
         category_follow_instance = CategoryFollow.objects.filter(user=request.user.pk, category=self.get_object().category)
@@ -138,10 +124,17 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
             collect_serializer.is_valid()
             collect_category = [str(i) for i in collect_serializer.data[0]['category']]
 
-        if like_instance:
+        con = get_redis_connection()
+        flag = md5((str(request.user.pk) + str(self.get_object().article_id.hex)).encode("utf-8")).hexdigest()
+
+        if con.hexists('like', flag):
             is_like = True
         else:
-            is_like = False
+            like_instance = Like.objects.filter(user=request.user.pk, blog_id=self.get_object().article_id)
+            if like_instance:
+                is_like = True
+            else:
+                is_like = False
 
         if collect_instance:
             is_collect = True
@@ -154,8 +147,14 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
             is_category_follow = False
 
         instance = self.get_object()
-        instance.click_nums += 1
-        instance.save()
+        con = get_redis_connection()
+        click_nums = 0
+        if con.hexists('visited', str(self.get_object().article_id)):
+            click_nums = self.get_object().click_nums + int(con.hget('visited', str(self.get_object().article_id)))
+
+        instance.click_nums += click_nums
+        # instance.click_nums += 1
+        # instance.save()
         serializer = self.get_serializer(instance)
         data = serializer.data
         data.update({'is_like': is_like})
@@ -209,6 +208,19 @@ class CategoryViewSet(ModelViewSet):
 
         return Response(serializer.data)
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        category_follow_instance = CategoryFollow.objects.filter(user=request.user.pk, category=self.get_object().id)
+        if category_follow_instance:
+            is_category_follow = True
+        else:
+            is_category_follow = False
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        data.update({'is_category_follow': is_category_follow})
+
+        return Response(data)
+
     def create(self, request, *args, **kwargs):
         data = request.data
         data.update({'user': request.user.pk})
@@ -245,20 +257,35 @@ class LikeViewSet(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
 
-        instance = Like.objects.filter(user=request.user.pk, blog_id=request.data['blog_id'])
-        if instance:
-            instance.delete()
+        con = get_redis_connection()
+
+        flag = md5((str(request.user.pk)+UUID(request.data['blog_id']).hex).encode("utf-8")).hexdigest()
+
+        if con.hexists('like', flag):
+            con.hdel('like', flag)
             return Response({'like': False}, status=status.HTTP_200_OK)
         else:
-
             data = request.data
             data.update({'user': request.user.pk})
-            serializer = LikeSerializer(data=data)
-            if not serializer.is_valid():
-                return Response({'info': 'error'}, status=status.HTTP_400_BAD_REQUEST)
-
-            serializer.save()
+            value = json.dumps(data)
+            con.hset('like', flag, value)
             return Response({'like': True}, status=status.HTTP_200_OK)
+
+        # instance = Like.objects.filter(user=request.user.pk, blog_id=request.data['blog_id'])
+        #
+        # if instance:
+        #     instance.delete()
+        #     return Response({'like': False}, status=status.HTTP_200_OK)
+        # else:
+        #
+        #     data = request.data
+        #     data.update({'user': request.user.pk})
+        #     serializer = LikeSerializer(data=data)
+        #     if not serializer.is_valid():
+        #         return Response({'info': 'error'}, status=status.HTTP_400_BAD_REQUEST)
+        #
+        #     serializer.save()
+        #     return Response({'like': True}, status=status.HTTP_200_OK)
 
     # def destroy(self, request, *args, **kwargs):
     #     instance = self.get_object()
