@@ -149,8 +149,11 @@ class ArticleListSerializer(ModelSerializer):
     def get_click_num(self, obj):
         con = get_redis_connection()
         click_nums = obj.click_nums
-        if con.hget('visited', str(obj.article_id)):
-            click_nums += int(con.hget('visited', str(obj.article_id)))
+        visited_args = ("blog:visited:list", "article.id:{id}:num".format_map({'id': str(obj.article_id)}))
+
+        if con.hget(*visited_args):
+
+            click_nums += int(con.hget(*visited_args))
         return click_nums
 
 

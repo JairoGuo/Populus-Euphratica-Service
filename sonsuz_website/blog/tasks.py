@@ -14,13 +14,13 @@ User = get_user_model()
 @celery_app.task()
 def commit_visited():
     con = get_redis_connection()
-    visited_list = con.hgetall('visited')
+    visited_list = con.hgetall('blog:visited:list')
     # print(visited_list)
     data = OrderedDict(visited_list)
     for key, value in data.items():
         key = str(key, encoding="utf8")
-        Article.objects.filter(article_id=key).update(click_nums=F('click_nums') + int(value))
-        con.hdel('visited', key)
+        Article.objects.filter(article_id=key.split(':')[1]).update(click_nums=F('click_nums') + int(value))
+        con.hdel('blog:visited:list', key)
 
     return True
 
@@ -28,13 +28,13 @@ def commit_visited():
 @celery_app.task()
 def commit_like():
     con = get_redis_connection()
-    like = con.hgetall('like')
+    like = con.hgetall('blog:like:list')
     data = OrderedDict(like)
     for key, value in data.items():
         data = json.loads(value)
         user = User.objects.get(pk=data['user'])
         article_instance = Article.objects.get(pk=data['blog_id'])
         Like.objects.create(blog_id=article_instance, user=user)
-        con.hdel('like', key)
+        con.hdel('blog:like:list', key)
 
     return True

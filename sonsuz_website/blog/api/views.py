@@ -83,9 +83,10 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
     def handle_visited(self, request, id):
         increase_pv = False
         con = get_redis_connection()
-
-        if not con.hget("visited", str(id)):
-            con.hset("visited", str(id), 0)
+        # article.id:{id}:visits
+        visited_args = ("blog:visited:list", "article.id:{id}:num".format_map({'id': str(id)}))
+        if not con.hget(*visited_args):
+            con.hset(*visited_args, 0)
 
         if 'HTTP_X_FORWARDED_FOR' in request.META:
             ip = request.META['HTTP_X_FORWARDED_FOR']
@@ -97,23 +98,18 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
         if not con.hget('visitor', flag):
             increase_pv = True
             # cache.set(flag, 1, 1 * 60)
-            con.hset('visitor', flag, 1)
-            con.expire('visitor', 60)
+            con.hset('blog:visitor:flag', flag, 1)
+            con.expire('blog:visitor:flag', 60)
 
         if increase_pv:
 
-            con.hincrby('visited', str(id))
+            con.hincrby(*visited_args)
 
             # cache.client.hset("visited", str(id), 1)
 
     def retrieve(self, request, *args, **kwargs):
 
-
-
-        # ip1 = get_client_ip(request)
-
         self.handle_visited(request, self.get_object().article_id)
-
 
         collect_category = []
         collect_instance = Collect.objects.filter(user=request.user.pk, article=self.get_object().article_id)
@@ -126,8 +122,13 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
 
         con = get_redis_connection()
         flag = md5((str(request.user.pk) + str(self.get_object().article_id.hex)).encode("utf-8")).hexdigest()
-
-        if con.hexists('like', flag):
+        # userid:{userid}:article.id:{article.id}:json
+        like_args = ('blog:like:list',
+                     "userid:{userid}:article.id:{article_id}:json"
+                     .format_map({'userid': request.user.pk,
+                                  'article_id': self.get_object().article_id}))
+        # if con.hexists('blog:like', "like.data:{flag}:json".format_map({'flag': flag})):
+        if con.hexists(*like_args):
             is_like = True
         else:
             like_instance = Like.objects.filter(user=request.user.pk, blog_id=self.get_object().article_id)
@@ -260,15 +261,18 @@ class LikeViewSet(ModelViewSet):
         con = get_redis_connection()
 
         flag = md5((str(request.user.pk)+UUID(request.data['blog_id']).hex).encode("utf-8")).hexdigest()
-
-        if con.hexists('like', flag):
-            con.hdel('like', flag)
+        like_args = ('blog:like:list',
+                     "userid:{userid}:article.id:{article_id}:json"
+                     .format_map({'userid': request.user.pk,
+                                  'article_id': request.data['blog_id']}))
+        if con.hexists(*like_args):
+            con.hdel(*like_args)
             return Response({'like': False}, status=status.HTTP_200_OK)
         else:
             data = request.data
             data.update({'user': request.user.pk})
             value = json.dumps(data)
-            con.hset('like', flag, value)
+            con.hset(*like_args, value)
             return Response({'like': True}, status=status.HTTP_200_OK)
 
         # instance = Like.objects.filter(user=request.user.pk, blog_id=request.data['blog_id'])
