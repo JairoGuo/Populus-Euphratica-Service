@@ -81,7 +81,8 @@ THIRD_PARTY_APPS = [
     # "rest_auth.registration",
     "dj_rest_auth.registration",
     'taggit_serializer',
-    'django_filters'
+    'django_filters',
+    'channels',
 
 ]
 
@@ -89,7 +90,8 @@ LOCAL_APPS = [
     "sonsuz_website.users.apps.UsersConfig",
     'sonsuz_website.news.apps.NewsConfig',
     'sonsuz_website.blog.apps.BlogConfig',
-    'sonsuz_website.ImageHosting.apps.ImagehostingConfig'
+    'sonsuz_website.ImageHosting.apps.ImagehostingConfig',
+    'sonsuz_website.chat.apps.ChatConfig'
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -373,5 +375,17 @@ CELERYBEAT_SCHEDULE = {
         'task': 'sonsuz_website.blog.tasks.commit_visited',
         'schedule': crontab(minute='*/10', hour='3',),
         'args': ()
+    },
+}
+ASGI_APPLICATION = 'config.routing.application'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            # "hosts": [("127.0.0.1", 6379)],
+            "hosts": [f'{env("CHANNEL_URL", default="redis://127.0.0.1:6379/3")}', ],  # channel layers缓存使用Redis 3
+
+        },
     },
 }

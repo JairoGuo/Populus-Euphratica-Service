@@ -23,6 +23,9 @@ django-taggit  # https://django-taggit.readthedocs.io/en/latest/
 # django-rest-auth  # http://django-rest-auth.readthedocs.org/en/latest/
 dj-rest-auth  # https://dj-rest-auth.readthedocs.io/en/latest/
 django-filter  # https://django-filter.readthedocs.io/en/stable
+channels
+channels-redis
+
 
 # Django REST Framework
 # ------------------------------------------------------------------------------

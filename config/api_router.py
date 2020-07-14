@@ -20,6 +20,7 @@ urlpatterns += [
     path('accounts/', include('sonsuz_website.users.api.api_router')),
     path('news/', include('sonsuz_website.news.api.api_router')),
     path('blog/', include('sonsuz_website.blog.api.api_router')),
+    path('chat/', include('sonsuz_website.chat.api.api_router')),
     path('upload-image/', include('sonsuz_website.ImageHosting.api.api_router')),
 
 

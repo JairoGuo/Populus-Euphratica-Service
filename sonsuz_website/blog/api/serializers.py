@@ -40,7 +40,6 @@ class ReplyCommentSerializer(ModelSerializer):
         fields = '__all__'
 
 
-
 class CommentSerializer(ModelSerializer):
     replies = ReplyCommentSerializer(read_only=True, many=True)
     username = serializers.ReadOnlyField(source='user.username', required=False)
@@ -49,10 +48,8 @@ class CommentSerializer(ModelSerializer):
     class Meta:
         model = Comment
         list_serializer_class = CommentListSerializer
+
         fields = '__all__'
-
-
-
 
 
 class ArticleSerializer(TaggitSerializer, ModelSerializer):

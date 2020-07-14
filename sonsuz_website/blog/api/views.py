@@ -2,48 +2,21 @@ import json
 import re
 from hashlib import md5
 from uuid import UUID
-
-import coreapi
-import coreschema
-from allauth.account.adapter import get_adapter
-from allauth.account.utils import send_email_confirmation, setup_user_email
-from dj_rest_auth.utils import JWTCookieAuthentication
-from django.contrib.auth import get_user_model
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.cache import cache
-from django.db.models.aggregates import Count
-
-from django.utils.http import urlunquote
-from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import DetailView
-from django.core import signing
 from django_filters.rest_framework import DjangoFilterBackend
 from django_redis import get_redis_connection
 from rest_framework.filters import OrderingFilter
-from rest_framework.schemas import ManualSchema
-from config.settings.base import APPS_DIR
 from rest_framework import status, permissions
-from rest_framework.authentication import SessionAuthentication
-from rest_framework.decorators import action, api_view, parser_classes, permission_classes
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, UpdateModelMixin, CreateModelMixin, \
     DestroyModelMixin
-from rest_framework.parsers import MultiPartParser
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.mixins import ListModelMixin
-from rest_framework.generics import ListAPIView
-
 from sonsuz_website.blog.api.serializers import ArticleSerializer, CategorySerializer, CommentSerializer, \
     ArticleListSerializer, ArticleViewSerializer, LikeSerializer, CollectSerializer, CollectCategorySerializer, \
     CategoryFollowSerializer
 from sonsuz_website.blog.models import Article, ArticleCategory, Comment, Like, Collect, CollectCategory, CategoryFollow
 from sonsuz_website.users.models import User
 from sonsuz_website.blog.api.pagination import PageLimitOffset
-from ipware.ip import get_client_ip
-
-
 
 
 class ArticleListView(ListModelMixin, GenericViewSet):
@@ -94,7 +67,7 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
         else:
             ip = request.META['REMOTE_ADDR']
             print('REMOTE_ADDR', ip)
-        flag = md5((ip+str(id)).encode("utf-8")).hexdigest()
+        flag = md5((ip + str(id)).encode("utf-8")).hexdigest()
         if not con.hget('visitor', flag):
             increase_pv = True
             # cache.set(flag, 1, 1 * 60)
@@ -102,7 +75,6 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
             con.expire('blog:visitor:flag', 60)
 
         if increase_pv:
-
             con.hincrby(*visited_args)
 
             # cache.client.hset("visited", str(id), 1)
@@ -113,7 +85,8 @@ class ArticleView(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, Destro
 
         collect_category = []
         collect_instance = Collect.objects.filter(user=request.user.pk, article=self.get_object().article_id)
-        category_follow_instance = CategoryFollow.objects.filter(user=request.user.pk, category=self.get_object().category)
+        category_follow_instance = CategoryFollow.objects.filter(user=request.user.pk,
+                                                                 category=self.get_object().category)
 
         if collect_instance:
             collect_serializer = CollectSerializer(data=collect_instance, many=True)
@@ -237,17 +210,25 @@ class CategoryViewSet(ModelViewSet):
 class CommentsViewSet(ModelViewSet):
     serializer_class = CommentSerializer
     queryset = Comment.objects.filter(reply_comment=None)
+    filter_backends = (DjangoFilterBackend, )
+    filter_fields = ('blog_id',)
+
+
 
     def create(self, request, *args, **kwargs):
+        con = get_redis_connection()
         data = request.data
         data.update({'user': request.user.pk})
-
+        comment_args = ['blog:comment:list:json']
+        value = json.dumps(data)
+        con.lpush(*comment_args, value)
         serializer = CommentSerializer(data=data)
         if not serializer.is_valid():
             return Response({'info': 'error'}, status=status.HTTP_400_BAD_REQUEST)
-
+        #
         serializer.save()
         rlt_data = serializer.data
+        print(rlt_data)
         rlt_data['avatar'] = 'http://localhost:8000' + rlt_data['avatar']
         return Response(rlt_data, status=status.HTTP_200_OK)
 
@@ -260,7 +241,7 @@ class LikeViewSet(ModelViewSet):
 
         con = get_redis_connection()
 
-        flag = md5((str(request.user.pk)+UUID(request.data['blog_id']).hex).encode("utf-8")).hexdigest()
+        flag = md5((str(request.user.pk) + UUID(request.data['blog_id']).hex).encode("utf-8")).hexdigest()
         like_args = ('blog:like:list',
                      "userid:{userid}:article.id:{article_id}:json"
                      .format_map({'userid': request.user.pk,
@@ -354,8 +335,6 @@ class CollectViewSet(ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-
-
     def create(self, request, *args, **kwargs):
 
         data = request.data
@@ -437,9 +416,6 @@ class CategoryFollowViewSet(ModelViewSet):
             instance = CategoryFollow.objects.filter(user=user)
             queryset = self.filter_queryset(instance)
 
-
         serializer = self.get_serializer(queryset, many=True)
 
         return Response(serializer.data)
-
-
