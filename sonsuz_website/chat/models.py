@@ -11,7 +11,7 @@ class Message(models.Model):
     uuid_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='sent_messages',
                                blank=True, null=True, on_delete=models.SET_NULL, verbose_name='发送者')
-    reciever = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='received_messages',
+    receiver = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='received_messages',
                                   blank=True, null=True, on_delete=models.SET_NULL, verbose_name='接受者')
     message = models.TextField(blank=True, null=True, verbose_name='内容')
     unread = models.BooleanField(default=True, db_index=True, verbose_name='是否未读')
