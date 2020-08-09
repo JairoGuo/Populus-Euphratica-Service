@@ -3,7 +3,7 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 from django.urls import path
 
-from sonsuz_website.chat.consumers import MessagesConsumer
+from sonsuz_website.chat.consumers import MessagesConsumer, PushConsumer
 # from sonsuz_website.notifications.consumers import NotificationsConsumer
 
 
@@ -17,7 +17,8 @@ application = ProtocolTypeRouter({
         AuthMiddlewareStack(
             URLRouter([
                 # path('ws/notifications/', NotificationsConsumer),
-                path('ws/<str:username>/', MessagesConsumer),
+                path('ws/<str:group_name>/', MessagesConsumer),
+                path('push/<str:username>/', PushConsumer),
             ])
         )
     )

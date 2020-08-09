@@ -21,7 +21,7 @@ class MessageViewSet(ModelViewSet):
     filter_fields = ('sender', 'receiver')
 
     def list(self, request, *args, **kwargs):
-        print(request.query_params)
+
         # queryset = self.filter_queryset(self.get_queryset())
         queryset = self.get_queryset().filter((Q(sender=request.user.pk)| Q(sender=request.query_params['receiver']))
                                               & (Q(receiver=request.user.pk)
@@ -36,7 +36,7 @@ class MessageViewSet(ModelViewSet):
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
-        print(request.data)
+        # print(request.data)
         data = dict(request.data)
         sender = request.user
         receiver_username = data['receiver']
@@ -45,7 +45,7 @@ class MessageViewSet(ModelViewSet):
         data.update({'sender': sender.pk})
         data.update({'receiver': receiver.pk})
         if len(message_content.strip()) != 0 and sender != receiver:
-            print(data)
+            # print(data)
             serializer = MessageSerializer(data=data)
             if not serializer.is_valid():
                 return Response({'info': 'error'}, status=status.HTTP_400_BAD_REQUEST)
@@ -58,15 +58,15 @@ class MessageViewSet(ModelViewSet):
             # )
             channel_layer = get_channel_layer()
             payload = {
-                'type': 'receive',
+                'type': 'receive.json',
                 'message': serializer.data,
                 'sender': sender.username
             }
             # group_send(group: 所在组-接收者的username, message: 消息内容)
-            async_to_sync(channel_layer.group_send)(receiver.username, payload)
+            async_to_sync(channel_layer.group_send)('c4103f122d27677c9db144cae1394a66', payload)
             return Response(serializer.data)
 
-        return Response({'message': 'ok'})
+        return Response({'message': 'prohibit'})
 
     @action(detail=False, methods=["GET"])
     def get_recent_conversation(self, request):
